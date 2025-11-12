@@ -1,22 +1,17 @@
 pipeline {
     agent {
         docker {
-            image 'node:20-alpine'      // Lightweight Node.js image
-            args '-u root'              // Run as root for npm install permissions
+            image 'node:20-alpine'
+            args '-u root'
         }
     }
 
     environment {
-        // Git repo details
         GIT_URL = 'https://github.com/kothapalli1094/Trading-UI.git'
         GIT_BRANCH = 'master'
-
-        // React build configuration
         BUILD_DIR = 'build'
         NODE_OPTIONS = '--openssl-legacy-provider'
         CI = 'false'
-
-        // Docker / Nginx configuration
         APP_NAME = 'trading-ui'
         CONTAINER_NAME = 'trading-ui-nginx'
         NGINX_IMAGE = 'nginx:latest'
@@ -82,7 +77,7 @@ pipeline {
                     echo "📁 Copying React build files to Nginx container..."
                     docker cp ${BUILD_DIR}/. ${CONTAINER_NAME}:/usr/share/nginx/html/
 
-                    echo "✅ Deployment successful! Visit: http://$(hostname -I | awk '{print $1}'):${PORT}"
+                    echo "✅ Deployment successful!"
                 '''
             }
         }
@@ -108,7 +103,10 @@ pipeline {
     post {
         success {
             echo "✅ Trading-UI pipeline executed successfully!"
-            echo "🌐 Access the app at: http://$(hostname -I | awk '{print $1}'):${PORT}"
+            sh '''
+                IP=$(hostname -I | awk '{print $1}')
+                echo "🌐 Access the app at: http://$IP:${PORT}"
+            '''
         }
         failure {
             echo "❌ Build or deployment failed. Please check the Jenkins logs above."
