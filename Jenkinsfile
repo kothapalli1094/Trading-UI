@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:20-alpine'
-            args '-u root'
-        }
-    }
+    agent any
 
     environment {
         GIT_URL = 'https://github.com/kothapalli1094/Trading-UI.git'
