@@ -1,12 +1,8 @@
 pipeline {
     agent any
 
-    tools {
-        nodejs 'node18'  // Make sure you have Node.js configured under "Manage Jenkins → Global Tool Configuration"
-    }
-
     environment {
-        // Git Repository
+        // Git repository
         GIT_URL = 'https://github.com/kothapalli1094/Trading-UI.git'
         GIT_BRANCH = 'master'
 
@@ -28,10 +24,20 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Install Node.js & Dependencies') {
             steps {
-                echo "📦 Installing Node.js dependencies..."
-                sh 'npm install'
+                echo "📦 Installing Node.js and dependencies..."
+                // install Node manually if not already installed
+                sh '''
+                    if ! command -v node >/dev/null 2>&1; then
+                        echo "Installing Node.js..."
+                        curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+                        yum install -y nodejs
+                    fi
+                    node -v
+                    npm -v
+                    npm install
+                '''
             }
         }
 
@@ -56,8 +62,8 @@ pipeline {
                         ${SCANNER_HOME}/bin/sonar-scanner \
                             -Dsonar.projectKey=Trading-UI \
                             -Dsonar.projectName=Trading-UI \
-                            -Dsonar.sources=src \
                             -Dsonar.projectVersion=${env.BUILD_NUMBER} \
+                            -Dsonar.sources=src \
                             -Dsonar.host.url=http://54.145.245.39:9000
                     '''
                 }
@@ -85,7 +91,6 @@ pipeline {
             steps {
                 echo "🚀 Deploying Trading-UI to target environment..."
                 sh '''
-                    # Example: Copy build files to /var/www/html (Nginx)
                     sudo rm -rf /var/www/html/*
                     sudo cp -r build/* /var/www/html/
                     echo "✅ Trading-UI deployed successfully!"
