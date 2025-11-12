@@ -4,9 +4,12 @@ pipeline {
     environment {
         GIT_URL = 'https://github.com/kothapalli1094/Trading-UI.git'
         GIT_BRANCH = 'master'
+
         BUILD_DIR = 'build'
+        NODE_VERSION = '18'
         NODE_OPTIONS = '--openssl-legacy-provider'
         CI = 'false'
+
         APP_NAME = 'trading-ui'
         CONTAINER_NAME = 'trading-ui-nginx'
         NGINX_IMAGE = 'nginx:latest'
@@ -15,9 +18,24 @@ pipeline {
 
     stages {
 
+        stage('Prepare Environment') {
+            steps {
+                echo "⚙️ Checking Node.js installation..."
+                sh '''
+                    if ! command -v node &> /dev/null; then
+                        echo "📦 Node.js not found — installing Node.js ${NODE_VERSION}..."
+                        curl -fsSL https://rpm.nodesource.com/setup_${NODE_VERSION}.x | sudo -E bash -
+                        sudo yum install -y nodejs
+                    else
+                        echo "✅ Node.js already installed — version: $(node -v)"
+                    fi
+                '''
+            }
+        }
+
         stage('Checkout Code') {
             steps {
-                echo "📥 Cloning repository..."
+                echo "📥 Cloning repository from ${GIT_BRANCH}..."
                 git branch: "${GIT_BRANCH}", url: "${GIT_URL}"
                 echo "✅ Repository cloned successfully!"
             }
@@ -30,9 +48,9 @@ pipeline {
             }
         }
 
-        stage('Run Tests') {
+        stage('Run Lint & Tests') {
             steps {
-                echo "🧪 Running lint and basic tests (non-blocking)..."
+                echo "🧪 Running lint and test scripts..."
                 sh '''
                     npm run lint || echo "⚠️ Lint warnings detected (ignored)"
                     npm test || echo "⚠️ Test failures detected (ignored)"
@@ -42,7 +60,7 @@ pipeline {
 
         stage('Build React App') {
             steps {
-                echo "🏗️ Building Trading-UI React app..."
+                echo "🏗️ Building Trading-UI React application..."
                 sh '''
                     export NODE_OPTIONS=--openssl-legacy-provider
                     export CI=false
@@ -52,34 +70,34 @@ pipeline {
             }
         }
 
-        stage('Archive Artifacts') {
+        stage('Archive Build Artifacts') {
             steps {
-                echo "📦 Archiving the build directory..."
+                echo "📦 Archiving build directory for reference..."
                 archiveArtifacts artifacts: "${BUILD_DIR}/**", fingerprint: true
             }
         }
 
-        stage('Deploy to Nginx Container') {
+        stage('Deploy to Nginx') {
             steps {
-                echo "🚀 Deploying Trading-UI to Nginx..."
+                echo "🚀 Deploying Trading-UI build to Nginx container..."
                 sh '''
-                    echo "🧹 Cleaning up old Nginx container if it exists..."
+                    echo "🧹 Removing old container if exists..."
                     docker rm -f ${CONTAINER_NAME} || true
 
-                    echo "🆕 Starting a fresh Nginx container..."
+                    echo "🆕 Starting new Nginx container..."
                     docker run -d --name ${CONTAINER_NAME} -p ${PORT}:80 ${NGINX_IMAGE}
 
                     echo "📁 Copying React build files to Nginx container..."
                     docker cp ${BUILD_DIR}/. ${CONTAINER_NAME}:/usr/share/nginx/html/
 
-                    echo "✅ Deployment successful!"
+                    echo "✅ Deployment completed successfully!"
                 '''
             }
         }
 
         stage('Health Check') {
             steps {
-                echo "🔍 Running post-deployment health check..."
+                echo "🔍 Performing post-deployment health check..."
                 script {
                     def response = sh(
                         script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:${PORT} || true",
@@ -88,7 +106,7 @@ pipeline {
                     if (response == '200') {
                         echo "✅ Health check passed — Trading-UI is live!"
                     } else {
-                        error "❌ Health check failed (Response code: ${response})"
+                        error "❌ Health check failed — Response code: ${response}"
                     }
                 }
             }
@@ -97,14 +115,14 @@ pipeline {
 
     post {
         success {
-            echo "✅ Trading-UI pipeline executed successfully!"
+            echo "✅ Trading-UI pipeline completed successfully!"
             sh '''
                 IP=$(hostname -I | awk '{print $1}')
-                echo "🌐 Access the app at: http://$IP:${PORT}"
+                echo "🌐 Application available at: http://$IP:${PORT}"
             '''
         }
         failure {
-            echo "❌ Build or deployment failed. Please check the Jenkins logs above."
+            echo "❌ Pipeline failed. Please check the Jenkins logs for details."
         }
     }
 }
