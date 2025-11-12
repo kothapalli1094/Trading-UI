@@ -1,8 +1,8 @@
 pipeline {
     agent {
         docker {
-            image 'node:20-alpine'   // modern LTS Node version
-            args '-u root'           // allows using npm install -g if needed
+            image 'node:20-alpine'
+            args '-u root'
         }
     }
 
@@ -10,6 +10,7 @@ pipeline {
         GIT_URL = 'https://github.com/kothapalli1094/Trading-UI.git'
         GIT_BRANCH = 'master'
         BUILD_DIR = 'build'
+        NODE_OPTIONS = '--openssl-legacy-provider'
     }
 
     stages {
@@ -36,7 +37,10 @@ pipeline {
 
         stage('Build App') {
             steps {
-                sh 'npm run build'
+                sh '''
+                    echo "🏗️ Building Trading-UI..."
+                    npm run build
+                '''
             }
         }
 
@@ -49,7 +53,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                    echo "🚀 Simulated deployment..."
+                    echo "🚀 Deploying Trading-UI..."
                     ls -l ${BUILD_DIR}
                 '''
             }
